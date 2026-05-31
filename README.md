@@ -149,5 +149,3 @@ Usuário: postgres
 Senha: postgres
 Porta: 5432
 ```
-
-O backend usa `ddl-auto: update` e possui uma migração simples de compatibilidade para remover dados antigos de usuário, ajustar votos para `YES/NO` e manter a unicidade por `associate_id + pauta_id`.
