@@ -4,7 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.matheus.voting.dto.AbrirPautaDTO;
 import com.matheus.voting.dto.PautaDTO;
 import com.matheus.voting.dto.PautaInfoDTO;
+import com.matheus.voting.dto.VotoDTO;
+import com.matheus.voting.dto.VotoRequestDTO;
+import com.matheus.voting.exception.AssociateUnableToVoteException;
+import com.matheus.voting.exception.CpfNotFoundException;
 import com.matheus.voting.service.PautaService;
+import com.matheus.voting.service.VotoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -36,6 +41,9 @@ class PautaControllerTest {
 
     @MockitoBean
     private PautaService pautaService;
+
+    @MockitoBean
+    private VotoService votoService;
 
     @Test
     void deveCadastrarPauta() throws Exception {
@@ -134,5 +142,55 @@ class PautaControllerTest {
                 .andExpect(jsonPath("$.tempoAbertoPorMinutos").value(15));
 
         verify(pautaService).abrir(any(Long.class), any(AbrirPautaDTO.class));
+    }
+
+    @Test
+    void deveReceberVotoDaPautaComAssociateId() throws Exception {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678901", "YES");
+        VotoDTO response = new VotoDTO(3L, request.associateId(), request.cpf(), 1L, "YES");
+
+        when(votoService.criar(any(Long.class), any(VotoRequestDTO.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/pautas/1/votos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(3L))
+                .andExpect(jsonPath("$.associateId").value(10L))
+                .andExpect(jsonPath("$.cpf").value("12345678901"))
+                .andExpect(jsonPath("$.agendaId").value(1L))
+                .andExpect(jsonPath("$.vote").value("YES"));
+
+        verify(votoService).criar(any(Long.class), any(VotoRequestDTO.class));
+    }
+
+    @Test
+    void deveRetornarNotFoundQuandoCpfForInvalidoNoClientFake() throws Exception {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678901", "YES");
+
+        when(votoService.criar(any(Long.class), any(VotoRequestDTO.class)))
+                .thenThrow(new CpfNotFoundException("CPF inválido"));
+
+        mockMvc.perform(post("/api/pautas/1/votos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
+
+        verify(votoService).criar(any(Long.class), any(VotoRequestDTO.class));
+    }
+
+    @Test
+    void deveRetornarForbiddenQuandoAssociadoNaoEstiverHabilitado() throws Exception {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678901", "YES");
+
+        when(votoService.criar(any(Long.class), any(VotoRequestDTO.class)))
+                .thenThrow(new AssociateUnableToVoteException("Associado não está habilitado para votar"));
+
+        mockMvc.perform(post("/api/pautas/1/votos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        verify(votoService).criar(any(Long.class), any(VotoRequestDTO.class));
     }
 }

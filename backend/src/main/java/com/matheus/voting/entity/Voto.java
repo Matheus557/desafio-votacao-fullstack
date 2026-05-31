@@ -11,7 +11,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "voto",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"cpf", "pauta_id"})
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_vote_agenda_associate",
+                columnNames = {"associate_id", "pauta_id"}
+        )
 )
 @Data
 @NoArgsConstructor
@@ -21,6 +24,9 @@ public class Voto {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "associate_id")
+    private Long associateId;
 
     @NotBlank(message = "CPF é obrigatório")
     @Column(nullable = false)
@@ -45,8 +51,8 @@ public class Voto {
     }
 
     public enum VotoEnum {
-        SIM("Sim"),
-        NAO("Não");
+        YES("Sim"),
+        NO("Não");
 
         private final String descricao;
 

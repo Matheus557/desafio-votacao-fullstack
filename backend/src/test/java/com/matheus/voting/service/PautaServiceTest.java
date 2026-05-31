@@ -85,8 +85,8 @@ class PautaServiceTest {
 
         when(pautaRepository.findAll()).thenReturn(List.of(pauta));
         when(votoRepository.countByPautaId(1L)).thenReturn(5L);
-        when(votoRepository.countByPautaIdAndVoto(1L, Voto.VotoEnum.SIM)).thenReturn(3L);
-        when(votoRepository.countByPautaIdAndVoto(1L, Voto.VotoEnum.NAO)).thenReturn(2L);
+        when(votoRepository.countByPautaIdAndVoto(1L, Voto.VotoEnum.YES)).thenReturn(3L);
+        when(votoRepository.countByPautaIdAndVoto(1L, Voto.VotoEnum.NO)).thenReturn(2L);
 
         List<PautaInfoDTO> response = pautaService.listarComInformacoes();
 
@@ -107,8 +107,8 @@ class PautaServiceTest {
         );
 
         verify(votoRepository).countByPautaId(1L);
-        verify(votoRepository).countByPautaIdAndVoto(1L, Voto.VotoEnum.SIM);
-        verify(votoRepository).countByPautaIdAndVoto(1L, Voto.VotoEnum.NAO);
+        verify(votoRepository).countByPautaIdAndVoto(1L, Voto.VotoEnum.YES);
+        verify(votoRepository).countByPautaIdAndVoto(1L, Voto.VotoEnum.NO);
     }
 
     @Test

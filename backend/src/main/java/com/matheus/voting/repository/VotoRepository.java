@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface VotoRepository extends JpaRepository<Voto, Long> {
-    Optional<Voto> findByCpfAndPautaId(String cpf, Long pautaId);
+    Optional<Voto> findByAssociateIdAndPautaId(Long associateId, Long pautaId);
     List<Voto> findByPautaId(Long pautaId);
     long countByPautaId(Long pautaId);
     long countByPautaIdAndVoto(Long pautaId, Voto.VotoEnum voto);

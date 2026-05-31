@@ -3,14 +3,11 @@ package com.matheus.voting.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record VotoDTO(
-        Long id,
+public record VotoRequestDTO(
         @NotNull(message = "ID do associado é obrigatório")
         Long associateId,
         @NotBlank(message = "CPF é obrigatório")
         String cpf,
-        @NotNull(message = "ID da pauta é obrigatório")
-        Long agendaId,
         @NotBlank(message = "Voto é obrigatório")
         String vote
 ) {}

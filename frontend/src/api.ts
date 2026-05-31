@@ -23,9 +23,9 @@ export type AbrirPautaPayload = {
 }
 
 export type VotoPayload = {
+  associateId: number
   cpf: string
-  pautaId: number
-  voto: 'Sim' | 'Não'
+  vote: 'YES' | 'NO'
 }
 
 const API_BASE = '/api'
@@ -67,8 +67,8 @@ export function abrirPauta(pautaId: number, payload: AbrirPautaPayload) {
   })
 }
 
-export function registrarVoto(payload: VotoPayload) {
-  return request('/votos/receber', {
+export function registrarVoto(agendaId: number, payload: VotoPayload) {
+  return request(`/pautas/${agendaId}/votos`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })

@@ -31,9 +31,9 @@ class VotoControllerTest {
     private VotoService votoService;
 
     @Test
-    void deveReceberVotoComCpf() throws Exception {
-        VotoDTO request = new VotoDTO(null, "12345678900", 2L, "Sim");
-        VotoDTO response = new VotoDTO(3L, request.cpf(), request.pautaId(), "SIM");
+    void deveReceberVotoComAssociateId() throws Exception {
+        VotoDTO request = new VotoDTO(null, 10L, "12345678900", 2L, "YES");
+        VotoDTO response = new VotoDTO(3L, request.associateId(), request.cpf(), request.agendaId(), "YES");
 
         when(votoService.criar(any(VotoDTO.class))).thenReturn(response);
 
@@ -42,16 +42,17 @@ class VotoControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(3L))
+                .andExpect(jsonPath("$.associateId").value(10L))
                 .andExpect(jsonPath("$.cpf").value("12345678900"))
-                .andExpect(jsonPath("$.pautaId").value(2L))
-                .andExpect(jsonPath("$.voto").value("SIM"));
+                .andExpect(jsonPath("$.agendaId").value(2L))
+                .andExpect(jsonPath("$.vote").value("YES"));
 
         verify(votoService).criar(any(VotoDTO.class));
     }
 
     @Test
     void deveRetornarBadRequestQuandoVotoEstiverInvalido() throws Exception {
-        VotoDTO request = new VotoDTO(null, "", null, "");
+        VotoDTO request = new VotoDTO(null, null, "", null, "");
 
         mockMvc.perform(post("/api/votos/receber")
                         .contentType(MediaType.APPLICATION_JSON)

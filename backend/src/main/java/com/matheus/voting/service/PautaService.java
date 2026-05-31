@@ -120,8 +120,8 @@ public class PautaService {
     }
 
     private PautaInfoDTO converterParaInfoDTO(Pauta pauta) {
-        long votosSim = votoRepository.countByPautaIdAndVoto(pauta.getId(), Voto.VotoEnum.SIM);
-        long votosNao = votoRepository.countByPautaIdAndVoto(pauta.getId(), Voto.VotoEnum.NAO);
+        long votosSim = votoRepository.countByPautaIdAndVoto(pauta.getId(), Voto.VotoEnum.YES);
+        long votosNao = votoRepository.countByPautaIdAndVoto(pauta.getId(), Voto.VotoEnum.NO);
         long totalVotos = votoRepository.countByPautaId(pauta.getId());
         StatusPauta statusAtual = resolverStatusAtual(pauta);
 

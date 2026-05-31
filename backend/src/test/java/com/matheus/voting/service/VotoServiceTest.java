@@ -1,8 +1,13 @@
 package com.matheus.voting.service;
 
+import com.matheus.voting.client.CpfValidationClient;
+import com.matheus.voting.client.CpfValidationStatus;
 import com.matheus.voting.dto.VotoDTO;
+import com.matheus.voting.dto.VotoRequestDTO;
 import com.matheus.voting.entity.Pauta;
 import com.matheus.voting.entity.Voto;
+import com.matheus.voting.exception.AssociateUnableToVoteException;
+import com.matheus.voting.exception.CpfNotFoundException;
 import com.matheus.voting.repository.PautaRepository;
 import com.matheus.voting.repository.VotoRepository;
 import org.junit.jupiter.api.Test;
@@ -34,108 +39,156 @@ class VotoServiceTest {
     @Mock
     private PautaService pautaService;
 
+    @Mock
+    private CpfValidationClient cpfValidationClient;
+
     @InjectMocks
     private VotoService votoService;
 
     @Test
-    void deveReceberVotoSimComCpf() {
-        VotoDTO request = new VotoDTO(null, "123.456.789-00", 2L, "Sim");
-        Pauta pauta = criarPauta(request.pautaId());
+    void deveReceberVotoYesComAssociateId() {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "123.456.789-00", "YES");
+        Pauta pauta = criarPauta(2L);
 
-        when(pautaService.estaAberta(request.pautaId())).thenReturn(true);
-        when(votoRepository.findByCpfAndPautaId("12345678900", request.pautaId())).thenReturn(Optional.empty());
-        when(pautaRepository.findById(request.pautaId())).thenReturn(Optional.of(pauta));
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(pauta));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L)).thenReturn(Optional.empty());
+        when(cpfValidationClient.validate("12345678900")).thenReturn(CpfValidationStatus.ABLE_TO_VOTE);
         when(votoRepository.save(any(Voto.class))).thenAnswer(invocation -> {
             Voto voto = invocation.getArgument(0);
             voto.setId(3L);
             return voto;
         });
 
-        VotoDTO response = votoService.criar(request);
+        VotoDTO response = votoService.criar(2L, request);
 
         assertAll(
                 () -> assertEquals(3L, response.id()),
+                () -> assertEquals(10L, response.associateId()),
                 () -> assertEquals("12345678900", response.cpf()),
-                () -> assertEquals(request.pautaId(), response.pautaId()),
-                () -> assertEquals("SIM", response.voto())
+                () -> assertEquals(2L, response.agendaId()),
+                () -> assertEquals("YES", response.vote())
         );
 
         ArgumentCaptor<Voto> votoCaptor = ArgumentCaptor.forClass(Voto.class);
         verify(votoRepository).save(votoCaptor.capture());
         assertAll(
+                () -> assertEquals(10L, votoCaptor.getValue().getAssociateId()),
                 () -> assertEquals("12345678900", votoCaptor.getValue().getCpf()),
-                () -> assertEquals(Voto.VotoEnum.SIM, votoCaptor.getValue().getVoto())
+                () -> assertEquals(Voto.VotoEnum.YES, votoCaptor.getValue().getVoto())
         );
     }
 
     @Test
-    void deveReceberVotoNaoComAcento() {
-        VotoDTO request = new VotoDTO(null, "12345678900", 2L, "Não");
-        Pauta pauta = criarPauta(request.pautaId());
+    void deveReceberVotoNo() {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "NO");
+        Pauta pauta = criarPauta(2L);
 
-        when(pautaService.estaAberta(request.pautaId())).thenReturn(true);
-        when(votoRepository.findByCpfAndPautaId(request.cpf(), request.pautaId())).thenReturn(Optional.empty());
-        when(pautaRepository.findById(request.pautaId())).thenReturn(Optional.of(pauta));
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(pauta));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L)).thenReturn(Optional.empty());
+        when(cpfValidationClient.validate(request.cpf())).thenReturn(CpfValidationStatus.ABLE_TO_VOTE);
         when(votoRepository.save(any(Voto.class))).thenAnswer(invocation -> {
             Voto voto = invocation.getArgument(0);
             voto.setId(3L);
             return voto;
         });
 
-        VotoDTO response = votoService.criar(request);
+        VotoDTO response = votoService.criar(2L, request);
 
-        assertEquals("NAO", response.voto());
+        assertEquals("NO", response.vote());
     }
 
     @Test
-    void deveBloquearCpfQueJaVotouNaPauta() {
-        VotoDTO request = new VotoDTO(null, "12345678900", 2L, "Sim");
+    void deveBloquearAssociadoQueJaVotouNaPauta() {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "YES");
 
-        when(pautaService.estaAberta(request.pautaId())).thenReturn(true);
-        when(votoRepository.findByCpfAndPautaId(request.cpf(), request.pautaId()))
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(criarPauta(2L)));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L))
                 .thenReturn(Optional.of(new Voto()));
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> votoService.criar(request)
+                () -> votoService.criar(2L, request)
         );
 
-        assertEquals("CPF já votou nesta pauta", exception.getMessage());
-        verify(pautaRepository, never()).findById(request.pautaId());
+        assertEquals("Associado já votou nesta pauta", exception.getMessage());
+        verify(cpfValidationClient, never()).validate(any());
         verify(votoRepository, never()).save(any(Voto.class));
     }
 
     @Test
     void deveBloquearVotoQuandoPautaEstiverFechada() {
-        VotoDTO request = new VotoDTO(null, "12345678900", 2L, "Sim");
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "YES");
 
-        when(pautaService.estaAberta(request.pautaId())).thenReturn(false);
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(criarPauta(2L)));
+        when(pautaService.estaAberta(2L)).thenReturn(false);
 
         RuntimeException exception = assertThrows(
                 RuntimeException.class,
-                () -> votoService.criar(request)
+                () -> votoService.criar(2L, request)
         );
 
         assertEquals("A pauta não está mais aberta para votação", exception.getMessage());
-        verify(votoRepository, never()).findByCpfAndPautaId(request.cpf(), request.pautaId());
+        verify(votoRepository, never()).findByAssociateIdAndPautaId(request.associateId(), 2L);
+        verify(cpfValidationClient, never()).validate(any());
         verify(votoRepository, never()).save(any(Voto.class));
     }
 
     @Test
     void deveBloquearVotoDiferenteDeSimOuNao() {
-        VotoDTO request = new VotoDTO(null, "12345678900", 2L, "Talvez");
-        Pauta pauta = criarPauta(request.pautaId());
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "Talvez");
+        Pauta pauta = criarPauta(2L);
 
-        when(pautaService.estaAberta(request.pautaId())).thenReturn(true);
-        when(votoRepository.findByCpfAndPautaId(request.cpf(), request.pautaId())).thenReturn(Optional.empty());
-        when(pautaRepository.findById(request.pautaId())).thenReturn(Optional.of(pauta));
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(pauta));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L)).thenReturn(Optional.empty());
+        when(cpfValidationClient.validate(request.cpf())).thenReturn(CpfValidationStatus.ABLE_TO_VOTE);
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> votoService.criar(request)
+                () -> votoService.criar(2L, request)
         );
 
-        assertEquals("Voto deve ser 'Sim' ou 'Não'", exception.getMessage());
+        assertEquals("Voto deve ser 'YES' ou 'NO'", exception.getMessage());
+        verify(cpfValidationClient).validate(request.cpf());
+        verify(votoRepository, never()).save(any(Voto.class));
+    }
+
+    @Test
+    void deveRetornarErroQuandoCpfForInvalidoNoClientFake() {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "YES");
+
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(criarPauta(2L)));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L)).thenReturn(Optional.empty());
+        when(cpfValidationClient.validate(request.cpf())).thenThrow(new CpfNotFoundException("CPF inválido"));
+
+        CpfNotFoundException exception = assertThrows(
+                CpfNotFoundException.class,
+                () -> votoService.criar(2L, request)
+        );
+
+        assertEquals("CPF inválido", exception.getMessage());
+        verify(votoRepository, never()).save(any(Voto.class));
+    }
+
+    @Test
+    void deveBloquearQuandoCpfValidationClientRetornarUnableToVote() {
+        VotoRequestDTO request = new VotoRequestDTO(10L, "12345678900", "YES");
+
+        when(pautaRepository.findById(2L)).thenReturn(Optional.of(criarPauta(2L)));
+        when(pautaService.estaAberta(2L)).thenReturn(true);
+        when(votoRepository.findByAssociateIdAndPautaId(request.associateId(), 2L)).thenReturn(Optional.empty());
+        when(cpfValidationClient.validate(request.cpf())).thenReturn(CpfValidationStatus.UNABLE_TO_VOTE);
+
+        AssociateUnableToVoteException exception = assertThrows(
+                AssociateUnableToVoteException.class,
+                () -> votoService.criar(2L, request)
+        );
+
+        assertEquals("Associado não está habilitado para votar", exception.getMessage());
         verify(votoRepository, never()).save(any(Voto.class));
     }
 

@@ -276,8 +276,9 @@ function TelaVotacao({
   pauta: Pauta
   onVoltar: () => void
 }) {
+  const [associateId, setAssociateId] = useState('')
   const [cpf, setCpf] = useState('')
-  const [voto, setVoto] = useState<'Sim' | 'Não' | ''>('')
+  const [voto, setVoto] = useState<'YES' | 'NO' | ''>('')
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
   const [modalAviso, setModalAviso] = useState('')
@@ -320,6 +321,12 @@ function TelaVotacao({
       return
     }
 
+    const associateIdNumber = Number(associateId)
+    if (!Number.isInteger(associateIdNumber) || associateIdNumber <= 0) {
+      setErro('Informe um ID de associado valido.')
+      return
+    }
+
     if (tempoEsgotado) {
       setErro('Tempo esgotado. Esta pauta nao aceita novos votos.')
       return
@@ -328,15 +335,26 @@ function TelaVotacao({
     setEnviando(true)
 
     try {
-      await registrarVoto({ cpf, pautaId: pauta.id, voto })
+      await registrarVoto(pauta.id, { associateId: associateIdNumber, cpf, vote: voto })
       setMensagem('Voto registrado com sucesso.')
+      setAssociateId('')
       setCpf('')
       setVoto('')
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
 
-      if (message.includes('CPF')) {
-        setModalAviso('Este CPF ja votou nessa pauta e nao pode votar novamente.')
+      if (message.includes('Associado já votou')) {
+        setModalAviso('Este associado ja votou nessa pauta e nao pode votar novamente.')
+        return
+      }
+
+      if (message.includes('CPF inválido')) {
+        setModalAviso('CPF invalido ou nao encontrado na validacao externa.')
+        return
+      }
+
+      if (message.includes('não está habilitado')) {
+        setModalAviso('Associado nao esta habilitado para votar.')
         return
       }
 
@@ -378,6 +396,19 @@ function TelaVotacao({
         </div>
         <form className="form-stack" onSubmit={handleSubmit}>
           <label>
+            ID do associado
+            <input
+              type="number"
+              min="1"
+              value={associateId}
+              onChange={(event) => setAssociateId(event.target.value)}
+              inputMode="numeric"
+              disabled={tempoEsgotado}
+              required
+            />
+          </label>
+
+          <label>
             CPF
             <input
               value={cpf}
@@ -394,9 +425,9 @@ function TelaVotacao({
               <input
                 type="radio"
                 name="voto"
-                value="Sim"
-                checked={voto === 'Sim'}
-                onChange={() => setVoto('Sim')}
+                value="YES"
+                checked={voto === 'YES'}
+                onChange={() => setVoto('YES')}
                 required
               />
               Sim
@@ -405,9 +436,9 @@ function TelaVotacao({
               <input
                 type="radio"
                 name="voto"
-                value="Não"
-                checked={voto === 'Não'}
-                onChange={() => setVoto('Não')}
+                value="NO"
+                checked={voto === 'NO'}
+                onChange={() => setVoto('NO')}
               />
               Nao
             </label>

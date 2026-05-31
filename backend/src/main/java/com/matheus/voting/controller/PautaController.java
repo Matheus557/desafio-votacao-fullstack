@@ -3,7 +3,10 @@ package com.matheus.voting.controller;
 import com.matheus.voting.dto.AbrirPautaDTO;
 import com.matheus.voting.dto.PautaDTO;
 import com.matheus.voting.dto.PautaInfoDTO;
+import com.matheus.voting.dto.VotoDTO;
+import com.matheus.voting.dto.VotoRequestDTO;
 import com.matheus.voting.service.PautaService;
+import com.matheus.voting.service.VotoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,6 +21,9 @@ public class PautaController {
 
     @Autowired
     private PautaService pautaService;
+
+    @Autowired
+    private VotoService votoService;
 
     @PostMapping
     public ResponseEntity<PautaDTO> criar(@Valid @RequestBody PautaDTO dto) {
@@ -62,6 +68,15 @@ public class PautaController {
     public ResponseEntity<PautaInfoDTO> abrir(@PathVariable Long id, @Valid @RequestBody AbrirPautaDTO dto) {
         PautaInfoDTO pautaDTO = pautaService.abrir(id, dto);
         return ResponseEntity.ok(pautaDTO);
+    }
+
+    @PostMapping("/{agendaId}/votos")
+    public ResponseEntity<VotoDTO> receberVoto(
+            @PathVariable Long agendaId,
+            @Valid @RequestBody VotoRequestDTO dto
+    ) {
+        VotoDTO votoDTO = votoService.criar(agendaId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(votoDTO);
     }
 
     @DeleteMapping("/{id}")

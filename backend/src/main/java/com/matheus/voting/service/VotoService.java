@@ -1,8 +1,12 @@
 package com.matheus.voting.service;
 
+import com.matheus.voting.client.CpfValidationClient;
+import com.matheus.voting.client.CpfValidationStatus;
 import com.matheus.voting.dto.VotoDTO;
+import com.matheus.voting.dto.VotoRequestDTO;
 import com.matheus.voting.entity.Pauta;
 import com.matheus.voting.entity.Voto;
+import com.matheus.voting.exception.AssociateUnableToVoteException;
 import com.matheus.voting.repository.PautaRepository;
 import com.matheus.voting.repository.VotoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,25 +28,38 @@ public class VotoService {
     @Autowired
     private PautaService pautaService;
 
+    @Autowired
+    private CpfValidationClient cpfValidationClient;
+
     @Transactional
     public VotoDTO criar(VotoDTO dto) {
-        String cpf = normalizarCpf(dto.cpf());
+        return criar(dto.agendaId(), new VotoRequestDTO(dto.associateId(), dto.cpf(), dto.vote()));
+    }
 
-        if (!pautaService.estaAberta(dto.pautaId())) {
+    @Transactional
+    public VotoDTO criar(Long agendaId, VotoRequestDTO dto) {
+        Pauta pauta = pautaRepository.findById(agendaId)
+                .orElseThrow(() -> new RuntimeException("Pauta não encontrada com ID: " + agendaId));
+
+        if (!pautaService.estaAberta(agendaId)) {
             throw new RuntimeException("A pauta não está mais aberta para votação");
         }
 
-        if (votoRepository.findByCpfAndPautaId(cpf, dto.pautaId()).isPresent()) {
-            throw new RuntimeException("CPF já votou nesta pauta");
+        if (votoRepository.findByAssociateIdAndPautaId(dto.associateId(), agendaId).isPresent()) {
+            throw new RuntimeException("Associado já votou nesta pauta");
         }
 
-        Pauta pauta = pautaRepository.findById(dto.pautaId())
-                .orElseThrow(() -> new RuntimeException("Pauta não encontrada com ID: " + dto.pautaId()));
+        String cpf = normalizarCpf(dto.cpf());
+        CpfValidationStatus cpfStatus = cpfValidationClient.validate(cpf);
+        if (cpfStatus == CpfValidationStatus.UNABLE_TO_VOTE) {
+            throw new AssociateUnableToVoteException("Associado não está habilitado para votar");
+        }
 
         Voto voto = new Voto();
+        voto.setAssociateId(dto.associateId());
         voto.setCpf(cpf);
         voto.setPauta(pauta);
-        voto.setVoto(converterVoto(dto.voto()));
+        voto.setVoto(converterVoto(dto.vote()));
 
         Voto votoSalvo = votoRepository.save(voto);
         return converterParaDTO(votoSalvo);
@@ -80,6 +97,7 @@ public class VotoService {
     private VotoDTO converterParaDTO(Voto voto) {
         return new VotoDTO(
                 voto.getId(),
+                voto.getAssociateId(),
                 voto.getCpf(),
                 voto.getPauta().getId(),
                 voto.getVoto().name()
@@ -91,15 +109,23 @@ public class VotoService {
     }
 
     private Voto.VotoEnum converterVoto(String voto) {
+        if ("yes".equalsIgnoreCase(voto.trim()) || "sim".equalsIgnoreCase(voto.trim())) {
+            return Voto.VotoEnum.YES;
+        }
+
+        if ("no".equalsIgnoreCase(voto.trim())) {
+            return Voto.VotoEnum.NO;
+        }
+
         if ("sim".equalsIgnoreCase(voto.trim())) {
-            return Voto.VotoEnum.SIM;
+            return Voto.VotoEnum.YES;
         }
 
         String votoNormalizado = voto.trim().toLowerCase();
         if ("nao".equals(votoNormalizado) || "não".equals(votoNormalizado)) {
-            return Voto.VotoEnum.NAO;
+            return Voto.VotoEnum.NO;
         }
 
-        throw new IllegalArgumentException("Voto deve ser 'Sim' ou 'Não'");
+        throw new IllegalArgumentException("Voto deve ser 'YES' ou 'NO'");
     }
 }
