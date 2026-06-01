@@ -10,7 +10,7 @@ A estratégia escolhida seria o versionamento por URL, utilizando prefixos como:
 * `/api/v1/voting-sessions`
 * `/api/v1/votes`
 
-Essa abordagem é simples, explícita e amplamente utilizada em APIs REST. Em caso de mudanças incompatíveis (breaking changes), uma nova versão poderia ser disponibilizada através de `/api/v2`, mantendo a versão anterior durante o período de transição.
+Essa abordagem é simples e explícita. Em caso de mudanças incompatíveis, uma nova versão poderia ser disponibilizada através de `/api/v2`, mantendo a versão anterior durante o período de transição.
 
 A documentação das versões poderia ser mantida via Swagger/OpenAPI, com validação automática através de pipelines CI/CD.
 
