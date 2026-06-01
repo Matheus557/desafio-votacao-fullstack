@@ -2,6 +2,18 @@
 
 Aplicação de votação para pautas de assembleia. O backend gerencia pautas, sessões de votação e votos por associado; o frontend oferece uma tela simples para cadastrar pautas, abrir votação e registrar votos.
 
+## Bônus 3 - Versionamento da API
+
+A estratégia escolhida seria o versionamento por URL, utilizando prefixos como:
+
+* `/api/v1/agendas`
+* `/api/v1/voting-sessions`
+* `/api/v1/votes`
+
+Essa abordagem é simples, explícita e amplamente utilizada em APIs REST. Em caso de mudanças incompatíveis (breaking changes), uma nova versão poderia ser disponibilizada através de `/api/v2`, mantendo a versão anterior durante o período de transição.
+
+A documentação das versões poderia ser mantida via Swagger/OpenAPI, com validação automática através de pipelines CI/CD.
+
 ## Tecnologias
 
 - Backend: Java 17, Spring Boot 3.5, Spring Web, Spring Data JPA, Validation, PostgreSQL, Lombok e Swagger.
