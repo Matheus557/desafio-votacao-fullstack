@@ -62,6 +62,8 @@ URLs:
 
 ## Testes
 
+Os testes do backend cobrem os endpoints de pautas e votos, além das regras de serviço. Se alguma rota, status HTTP ou contrato de resposta sair do esperado, a execução do Maven falha mostrando o erro no terminal.
+
 ```bash
 cd backend
 ./mvnw test

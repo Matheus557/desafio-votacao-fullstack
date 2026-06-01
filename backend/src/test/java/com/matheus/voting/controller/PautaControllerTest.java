@@ -24,9 +24,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,6 +67,24 @@ class PautaControllerTest {
     }
 
     @Test
+    void deveCriarPautaPeloEndpointPrincipal() throws Exception {
+        PautaDTO request = new PautaDTO(null, "Pauta principal", "Descricao da pauta", 20);
+        PautaDTO response = new PautaDTO(2L, request.nome(), request.descricao(), request.tempoAbertoPorMinutos());
+
+        when(pautaService.criar(any(PautaDTO.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/pautas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(2L))
+                .andExpect(jsonPath("$.nome").value("Pauta principal"))
+                .andExpect(jsonPath("$.tempoAbertoPorMinutos").value(20));
+
+        verify(pautaService).criar(any(PautaDTO.class));
+    }
+
+    @Test
     void deveRetornarBadRequestQuandoCadastroEstiverInvalido() throws Exception {
         PautaDTO request = new PautaDTO(null, "", "", 0);
 
@@ -74,6 +94,35 @@ class PautaControllerTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(pautaService);
+    }
+
+    @Test
+    void deveObterPautaPorId() throws Exception {
+        PautaDTO response = new PautaDTO(1L, "Pauta de orcamento", "Descricao da pauta", 30);
+
+        when(pautaService.obterPorId(1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/pautas/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.nome").value("Pauta de orcamento"))
+                .andExpect(jsonPath("$.descricao").value("Descricao da pauta"));
+
+        verify(pautaService).obterPorId(1L);
+    }
+
+    @Test
+    void deveListarPautas() throws Exception {
+        PautaDTO pauta = new PautaDTO(1L, "Pauta de orcamento", "Descricao da pauta", 30);
+
+        when(pautaService.listar()).thenReturn(List.of(pauta));
+
+        mockMvc.perform(get("/api/pautas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].nome").value("Pauta de orcamento"));
+
+        verify(pautaService).listar();
     }
 
     @Test
@@ -142,6 +191,55 @@ class PautaControllerTest {
                 .andExpect(jsonPath("$.tempoAbertoPorMinutos").value(15));
 
         verify(pautaService).abrir(any(Long.class), any(AbrirPautaDTO.class));
+    }
+
+    @Test
+    void deveRetornarBadRequestQuandoAberturaEstiverInvalida() throws Exception {
+        AbrirPautaDTO request = new AbrirPautaDTO(0);
+
+        mockMvc.perform(patch("/api/pautas/1/abrir")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(pautaService);
+    }
+
+    @Test
+    void deveAtualizarPauta() throws Exception {
+        PautaDTO request = new PautaDTO(null, "Pauta atualizada", "Descricao atualizada", 45);
+        PautaDTO response = new PautaDTO(1L, request.nome(), request.descricao(), request.tempoAbertoPorMinutos());
+
+        when(pautaService.atualizar(any(Long.class), any(PautaDTO.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/pautas/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.nome").value("Pauta atualizada"))
+                .andExpect(jsonPath("$.tempoAbertoPorMinutos").value(45));
+
+        verify(pautaService).atualizar(any(Long.class), any(PautaDTO.class));
+    }
+
+    @Test
+    void deveDeletarPauta() throws Exception {
+        mockMvc.perform(delete("/api/pautas/1"))
+                .andExpect(status().isNoContent());
+
+        verify(pautaService).deletar(1L);
+    }
+
+    @Test
+    void deveVerificarSePautaEstaAberta() throws Exception {
+        when(pautaService.estaAberta(1L)).thenReturn(true);
+
+        mockMvc.perform(get("/api/pautas/1/aberta"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(true));
+
+        verify(pautaService).estaAberta(1L);
     }
 
     @Test
